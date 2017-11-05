@@ -10,8 +10,22 @@ if (!production) {
 // Set to 'eventdatasubsetlocalapp' to load from local mongo server
 // Set to 'eventdatasubsetapp' to load from API
 let appname = 'eventdatasubsetlocalapp';
-let dataset = 'phoenix';
+let dataset = 'icews';
 // document.getElementById("header").innerHTML = dataset;
+
+let subsetKeys = [];
+let subsetKeySelected = "";
+
+if (dataset === "phoenix") {
+    subsetKeys = ["Actor", "Date", "Action", "Location", "Coordinates", "Custom"]; // Used to label buttons in the left panel
+    subsetKeySelected = "Actor";
+}
+else {
+    subsetKeys = ["Date", "Events", "Location", "Coordinates", "Custom"]; // Used to label buttons in the left panel
+    subsetKeySelected = 'Date';
+}
+
+
 
 // TODO: When the server has field names 'to spec':
 //      Remove the gsub in the R app
@@ -26,10 +40,6 @@ let variables = ["X","GID","Date","Year","Month","Day","Source","SrcActor","SrcA
     "AdminInfo","ID","URL","sourcetxt"];
 let variablesSelected = new Set();
 
-let subsetKeys = ["Actor", "Date", "Action", "Location", "Coordinates", "Custom"]; // Used to label buttons in the left panel
-let subsetKeySelected = 'Actor';
-
-
 let varColor = 'rgba(240,248,255, 1.0)';   //d3.rgb("aliceblue");
 let selVarColor = 'rgba(250,128,114, 0.5)';    //d3.rgb("salmon");
 
@@ -37,6 +47,8 @@ let dateData = [];
 let countryData = [];
 let actorData = {};
 let actionData = [];
+
+let eventData = {};
 
 // This is set once data is loaded and the graphs can be drawn. Subset menus will not be shown until this is set
 let initialLoad = false;
@@ -231,7 +243,7 @@ function download() {
     query = {
         'subsets': JSON.stringify(subsetQuery),
         'variables': JSON.stringify(variableQuery),
-        'dataset': 'phoenix',
+        'dataset': dataset,
         'raw': true
     };
 
@@ -242,14 +254,34 @@ function download() {
 /**
 *   Draws all subset plots, often invoked as callback after server request for new plotting data
 */
-function pageSetup(jsondata) {
-    console.log("Server returned:");
-    console.log(jsondata);
-    if (jsondata.date_data.length === 0) {
-        alert("No records match your subset. Plots will not be updated.");
-        return false;
-    }
 
+function loadICEWS(jsondata) {
+    console.log(appname);
+    if (appname === "eventdatasubsetlocalapp") {
+        dateData.length = 0;
+        for (let idx in jsondata.date_data) {
+            dateData.push(JSON.parse(jsondata.date_data[idx]))
+        }
+
+        countryData = {};
+        console.log(map_fullname_lookup);
+        for (let idx in jsondata.country_data) {
+            let parsed = JSON.parse(jsondata.country_data[idx]);
+            countryData[parsed['_id']['Country']] = parsed['total']
+        }
+
+        eventData = {};
+        for (let idx in jsondata.event_data) {
+            let parsed = JSON.parse(jsondata.event_data[idx]);
+            eventData[parsed['_id']['Event']] = parsed['total']
+        }
+
+        addEvents();
+        // actorData = jsondata.actor_data;
+    }
+}
+
+function loadPhoenix(jsondata) {
     if (appname === "eventdatasubsetlocalapp") {
         dateData.length = 0;
         for (let idx in jsondata.date_data) {
@@ -264,6 +296,7 @@ function pageSetup(jsondata) {
                 countryData[parsed['_id']['CountryCode']] = parsed['total']
             }
         }
+        console.log(countryData);
 
         actionData = {};
         for (let i = 0; i < 20; i++) {
@@ -296,6 +329,25 @@ function pageSetup(jsondata) {
 
         actorData = jsondata.actor_data;
     }
+
+}
+
+function pageSetup(jsondata) {
+    console.log("Server returned:");
+    console.log(jsondata);
+
+    if (jsondata.date_data.length === 0) {
+        alert("No records match your subset. Plots will not be updated.");
+        return false;
+    }
+
+    if (dataset === "icews") {
+        loadICEWS(jsondata);
+    }
+    if (dataset === "phoenix") {
+        loadPhoenix(jsondata);
+    }
+
     d3date(true);
     d3loc();
     resetActionCounts();
@@ -509,7 +561,7 @@ function callbackDelete(id) {
             query = {
                 'subsets': JSON.stringify(subsetQuery),
                 'variables': JSON.stringify(variableQuery),
-                'dataset': 'phoenix'
+                'dataset': dataset
             };
             makeCorsRequest(subsetURL, query, pageSetup);
 

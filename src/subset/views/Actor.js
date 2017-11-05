@@ -922,6 +922,10 @@ function createElement(chkSwitch = true, actorType, columnType, value, index, di
         $(this).popover("toggle");
     });
 
+    setTimeout(function(){
+        $("#" + lbl.id).modal('hide')
+    }, 4000);
+
     function binarySearch(element) {
         let l = 0, r = dict.length - 1;
         while (l <= r) {

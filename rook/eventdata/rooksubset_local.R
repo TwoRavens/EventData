@@ -56,7 +56,7 @@ eventdata_subset_local.app <- function(env) {
     response$header("Access-Control-Allow-Origin", "*")  # Enable CORS
 
     print("Request received")
-    connection <- RMongo::mongoDbConnect('eventdata', '127.0.0.1', 27017)
+    connection <- RMongo::mongoDbConnect('event_scrape', '127.0.0.1', 27017)
 
     if (request$options()) {
         print("Preflight")
@@ -97,6 +97,7 @@ eventdata_subset_local.app <- function(env) {
 
     table = paste(dataset, '_events', sep='')
 
+    print(dataset)
     print(subsets)
 
     if (!is.null(type) && type == 'formatted') {
@@ -134,9 +135,6 @@ eventdata_subset_local.app <- function(env) {
     }
 
     # Arguments specific to sources/targets queries
-    length = everything$length
-    pagination = everything$page
-
     if (!is.null(type) && type == 'source') {
         unique_vals = sort(RMongo::dbGetDistinct(connection, table, 'Source', subsets))
         response$write(toString(jsonlite::toJSON(list(source = unique_vals))))
@@ -244,32 +242,32 @@ eventdata_subset_local.app <- function(env) {
             '{$project: {etext: "$Event Text", _id: 0}}',                   # Cull to just RootCode field
             '{$group: { _id: {Event: "$etext"}, total: {$sum:1}}}'))        # Compute frequencies of each bin
 
-        # Collect unique values for sources page
-        actor_source = sort(RMongo::dbGetDistinct(connection, table, 'Source Name', subsets))
-        actor_source_sectors = sort(RMongo::dbGetDistinct(connection, table, 'Source Sectors', subsets))
-        actor_source_countries = sort(RMongo::dbGetDistinct(connection, table, 'Source Country', subsets))
-
-        actor_source_values = list(
-            full = actor_source,
-            entities = actor_source_sectors,
-            roles = actor_source_countries
-        )
-
-        actor_target = sort(RMongo::dbGetDistinct(connection, table, 'Target Name', subsets))
-        actor_target_sectors = sort(RMongo::dbGetDistinct(connection, table, 'Target Sectors', subsets))
-        actor_target_countries = sort(RMongo::dbGetDistinct(connection, table, 'Target Countries', subsets))
-
-        actor_target_values = list(
-            full = actor_target,
-            entities = actor_target_sectors,
-            roles = actor_target_countries,
-        )
-
-        # Package actor data
-        actor_values = list(
-            source = actor_source_values,
-            target = actor_target_values
-        )
+        # # Collect unique values for sources page
+        # actor_source = sort(RMongo::dbGetDistinct(connection, table, 'Source Name', subsets))
+        # actor_source_sectors = sort(RMongo::dbGetDistinct(connection, table, 'Source Sectors', subsets))
+        # actor_source_countries = sort(RMongo::dbGetDistinct(connection, table, 'Source Country', subsets))
+        #
+        # actor_source_values = list(
+        #     full = actor_source,
+        #     entities = actor_source_sectors,
+        #     roles = actor_source_countries
+        # )
+        #
+        # actor_target = sort(RMongo::dbGetDistinct(connection, table, 'Target Name', subsets))
+        # actor_target_sectors = sort(RMongo::dbGetDistinct(connection, table, 'Target Sectors', subsets))
+        # actor_target_countries = sort(RMongo::dbGetDistinct(connection, table, 'Target Countries', subsets))
+        #
+        # actor_target_values = list(
+        #     full = actor_target,
+        #     entities = actor_target_sectors,
+        #     roles = actor_target_countries
+        # )
+        #
+        # # Package actor data
+        # actor_values = list(
+        #     source = actor_source_values,
+        #     target = actor_target_values
+        # )
 
 
         if (production) {
@@ -279,8 +277,8 @@ eventdata_subset_local.app <- function(env) {
         result = toString(jsonlite::toJSON(list(
             date_data = date_frequencies,
             country_data = country_frequencies,
-            event_data = event_frequencies,
-            actor_data = actor_values
+            event_data = event_frequencies  #,
+            # actor_data = actor_values
         )))
         response$write(result)
         return(response$finish())

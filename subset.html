@@ -411,6 +411,13 @@
         <svg id="worldMap" viewBox="0 0 2 1" preserveAspectRatio="xMinYMid" style="margin-left:10px;width:calc(100% - 45px);height:calc(100% - 120px);"></svg>
     </div>
 
+    <div id="subsetEvents" style="display:none">
+        <div class="panel-heading text-left" id="subsetEventLabel" style="margin-top:10px;width:14em;float:left">
+            <h3 class="panel-title">Event Texts</h3>
+        </div>
+        <div id="eventElements"></div>
+    </div>
+
     <div id="subsetCustom" style="display:none">
         <div class="panel-heading text-left" id="subsetCustomLabel" style="margin-top:10px;width:14em;float:left">
             <h3 class="panel-title">Custom Query String</h3>
@@ -487,6 +494,8 @@ function toggleRightPanel() {
 <script id="actorCodeJS" type="text/javascript" src="src/subset/views/Actor.js"></script>
 <script id="coordinateCodeJS" type="text/javascript" src="src/subset/views/Coordinates.js"></script>
 <script id="customCodeJS" type="text/javascript" src="src/subset/views/Custom.js"></script>
+<!--ICEWS Event Text-->
+<script id="eventCodeJS" type="text/javascript" src="src/subset/views/Events.js"></script>
 
 <script id="hopscotchTour" type="text/javascript" src="src/subset/tour.js"></script>
 </body>
