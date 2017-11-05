@@ -12,17 +12,18 @@
 #      sudo service mongod start
 #
 # 3. Create a new database using the mongoimport utility in the mongo bin (via cmd from ~/TwoRavens/)
-#      mongoimport -d eventdata -c samplePhox --type csv --file ./data/samplePhox.csv --headerline
+#      mongoimport -d event_scrape -c phoenix_events --type csv --file ./data/samplePhox.csv --headerline
+#      mongoimport -d event_scrape -c icews_events --type tsv --file ~/events.2002.20150313083053.tab --headerline
 #
 #      3a. To check that the csv data is available, run in new CMD:
 #          (connects to mongo server on default port, opens mongo prompt)
 #            mongo
-#       b. Switch to eventdata database
-#            use eventdata
-#       c. Return all data from the samplePhox table
-#            db.samplePhox.find()
+#       b. Switch to event_scrape database
+#            use event_scrape
+#       c. Return all data from the phoenix_events table
+#            db.phoenix_events.find()
 #       d. If Date field is string, run
-#            db.samplePhox.find({}).forEach( function (x) { x.Date = parseInt(x.Date); db.samplePhox.save(x); });
+#            db.phoenix_events.find({}).forEach( function (x) { x.Date = parseInt(x.Date); db.phoenix_events.save(x); });
 #
 # 4. Start a local R server to make this file available here: (should prompt for solajson)
 #      http://localhost:8000/custom/eventdataapp
@@ -45,7 +46,6 @@
 
 eventdata_subset_local.app <- function(env) {
     production = FALSE     ## Toggle:  TRUE - Production, FALSE - Local Development
-    validate_db = TRUE     ## Toggle:  TRUE - Check if database is properly formatted
 
     if (production) {
         sink(file = stderr(), type = "output")
@@ -56,18 +56,11 @@ eventdata_subset_local.app <- function(env) {
     response$header("Access-Control-Allow-Origin", "*")  # Enable CORS
 
     print("Request received")
-
-    table <- 'samplePhox'
     connection <- RMongo::mongoDbConnect('eventdata', '127.0.0.1', 27017)
 
     if (request$options()) {
         print("Preflight")
         response$status = 200L
-
-        if (validate_db) {
-            warnings = validate(RMongo::dbGetQuery(connection, table, "{}", skip=0, limit=100), 'phoenix');
-            response$write(paste('{"warning": "', toString(jsonlite::toJSON(warnings)), '"}'));
-        }
 
         # Ensures CORS header is permitted
         response$header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
@@ -90,37 +83,35 @@ eventdata_subset_local.app <- function(env) {
     }
 
     everything <- jsonlite::fromJSON(request$POST()$solaJSON, simplifyDataFrame = FALSE)
-    subsets = relabel(everything$subsets, everything$dataset)
-    variables = everything$variables
 
     # raw: return query as is
     # summary: return metadata
     # actor: return actor filtering
+    # format: check if database is properly formatted
     # validate: check if query is valid
     type = everything$type
 
-    subsets = gsub('date8', 'Date', subsets)
+    dataset = everything$dataset
+    subsets = relabel(everything$subsets, dataset)
+    variables = everything$variables
+
+    table = paste(dataset, '_events', sep='')
+
     print(subsets)
+
+    if (!is.null(type) && type == 'formatted') {
+        if (is.null(everything$dataset)) {
+            response$write(paste('{"error": "no dataset is given to check format"}'))
+        }
+
+        warnings = validate(RMongo::dbGetQuery(connection, table, "{}", skip=0, limit=100), everything$dataset)
+        response$write(paste('{"warning": "', toString(jsonlite::toJSON(warnings)), '"}'))
+        return(response$finish())
+    }
 
     if (!is.null(type) && type == 'raw') {
         result = toString(jsonlite::toJSON(RMongo::dbGetQueryForKeys(connection, table, subsets, variables)))
         response$write(result)
-        return(response$finish())
-    }
-
-    # Arguments specific to sources/targets queries
-    length = everything$length
-    pagination = everything$page
-
-    if (!is.null(type) && type == 'source') {
-        unique_vals = sort(RMongo::dbGetDistinct(connection, table, 'Source', subsets))
-        response$write(toString(jsonlite::toJSON(list(source = unique_vals))))
-        return(response$finish())
-    }
-
-    if (!is.null(type) && type == 'target') {
-        unique_vals = sort(RMongo::dbGetDistinct(connection, table, 'Target', subsets))
-        response$write(toString(jsonlite::toJSON(list(target = unique_vals))))
         return(response$finish())
     }
 
@@ -142,6 +133,22 @@ eventdata_subset_local.app <- function(env) {
         return(response$finish())
     }
 
+    # Arguments specific to sources/targets queries
+    length = everything$length
+    pagination = everything$page
+
+    if (!is.null(type) && type == 'source') {
+        unique_vals = sort(RMongo::dbGetDistinct(connection, table, 'Source', subsets))
+        response$write(toString(jsonlite::toJSON(list(source = unique_vals))))
+        return(response$finish())
+    }
+
+    if (!is.null(type) && type == 'target') {
+        unique_vals = sort(RMongo::dbGetDistinct(connection, table, 'Target', subsets))
+        response$write(toString(jsonlite::toJSON(list(target = unique_vals))))
+        return(response$finish())
+    }
+
     uniques = function(values) {
         accumulator = list()
         for (key in values) {
@@ -152,65 +159,130 @@ eventdata_subset_local.app <- function(env) {
         return(sort(unlist(unique(do.call(c, accumulator)))))
     }
 
-    # Collect frequency data necessary for date plot
-    date_frequencies = RMongo::dbAggregate(connection, table, c(
-    paste('{$match: ', subsets, '}'),                                   # First, match based on data subset
-    '{$project: {Year: "$Year", Month: "$Month", _id: 0}}',             # Cull to just Year and Month fields
-    '{$group: { _id: { year: "$Year", month: "$Month" }, total: {$sum: 1} }}')) # Group by years and months
+    if (dataset == 'phoenix') {
+        # Collect frequency data necessary for date plot
+        date_frequencies = RMongo::dbAggregate(connection, table, c(
+            paste('{$match: ', subsets, '}'),                                   # First, match based on data subset
+            '{$project: {Year: "$Year", Month: "$Month", _id: 0}}',             # Cull to just Year and Month fields
+            '{$group: { _id: { year: "$Year", month: "$Month" }, total: {$sum: 1} }}')) # Group by years and months
 
-    # Collect frequency data necessary for country plot
-    country_frequencies = RMongo::dbAggregate(connection, table, c(
-    paste('{$match: ', subsets, '}'),                                   # First, match based on data subset
-    '{$project: {ccode: "$CountryCode", _id: 0}}',                      # Cull to just CountryCode field
-    '{$group: { _id: {CountryCode: "$ccode"}, total: {$sum:1}}}'))        # Compute frequencies of each bin
+        # Collect frequency data necessary for country plot
+        country_frequencies = RMongo::dbAggregate(connection, table, c(
+            paste('{$match: ', subsets, '}'),                                   # First, match based on data subset
+            '{$project: {ccode: "$CountryCode", _id: 0}}',                      # Cull to just CountryCode field
+            '{$group: { _id: {CountryCode: "$ccode"}, total: {$sum:1}}}'))      # Compute frequencies of each bin
 
-    # Collect frequency data necessary for action plot
-    action_frequencies = RMongo::dbAggregate(connection, table, c(
-    paste('{$match: ', subsets, '}'),                                   # First, match based on data subset
-    '{$project: {rcode: "$RootCode", _id: 0}}',                         # Cull to just RootCode field
-    '{$group: { _id: {RootCode: "$rcode"}, total: {$sum:1}}}'))          # Compute frequencies of each bin
+        # Collect frequency data necessary for action plot
+        action_frequencies = RMongo::dbAggregate(connection, table, c(
+            paste('{$match: ', subsets, '}'),                                   # First, match based on data subset
+            '{$project: {rcode: "$RootCode", _id: 0}}',                         # Cull to just RootCode field
+            '{$group: { _id: {RootCode: "$rcode"}, total: {$sum:1}}}'))         # Compute frequencies of each bin
 
-    # Collect unique values for sources page
-    actor_source = sort(RMongo::dbGetDistinct(connection, table, 'Source', subsets))
-    actor_source_entities = sort(RMongo::dbGetDistinct(connection, table, 'SrcActor', subsets))
-    actor_source_role = sort(RMongo::dbGetDistinct(connection, table, 'SrcAgent', subsets))
-    actor_source_attributes = uniques(RMongo::dbGetDistinct(connection, table, 'SOthAgent', subsets))
+        # Collect unique values for sources page
+        actor_source = sort(RMongo::dbGetDistinct(connection, table, 'Source', subsets))
+        actor_source_entities = sort(RMongo::dbGetDistinct(connection, table, 'SrcActor', subsets))
+        actor_source_role = sort(RMongo::dbGetDistinct(connection, table, 'SrcAgent', subsets))
+        actor_source_attributes = uniques(RMongo::dbGetDistinct(connection, table, 'SOthAgent', subsets))
 
-    actor_source_values = list(
-        full = actor_source,
-        entities = actor_source_entities,
-        roles = actor_source_role,
-        attributes = actor_source_attributes
-    )
+        actor_source_values = list(
+            full = actor_source,
+            entities = actor_source_entities,
+            roles = actor_source_role,
+            attributes = actor_source_attributes
+        )
 
-    actor_target = sort(RMongo::dbGetDistinct(connection, table, 'Target', subsets))
-    actor_target_entities = sort(RMongo::dbGetDistinct(connection, table, 'TgtActor', subsets))
-    actor_target_role = sort(RMongo::dbGetDistinct(connection, table, 'TgtAgent', subsets))
-    actor_target_attributes = uniques(RMongo::dbGetDistinct(connection, table, 'TOthAgent', subsets))
+        actor_target = sort(RMongo::dbGetDistinct(connection, table, 'Target', subsets))
+        actor_target_entities = sort(RMongo::dbGetDistinct(connection, table, 'TgtActor', subsets))
+        actor_target_role = sort(RMongo::dbGetDistinct(connection, table, 'TgtAgent', subsets))
+        actor_target_attributes = uniques(RMongo::dbGetDistinct(connection, table, 'TOthAgent', subsets))
 
-    actor_target_values = list(
-        full = actor_target,
-        entities = actor_target_entities,
-        roles = actor_target_role,
-        attributes = actor_target_attributes
-    )
+        actor_target_values = list(
+            full = actor_target,
+            entities = actor_target_entities,
+            roles = actor_target_role,
+            attributes = actor_target_attributes
+        )
 
-    # Package actor data
-    actor_values = list(
-        source = actor_source_values,
-        target = actor_target_values
-    )
+        # Package actor data
+        actor_values = list(
+            source = actor_source_values,
+            target = actor_target_values
+        )
 
 
-    if (production) {
-        sink()
+        if (production) {
+            sink()
+        }
+        result = toString(jsonlite::toJSON(list(
+            date_data = date_frequencies,
+            country_data = country_frequencies,
+            action_data = action_frequencies,
+            actor_data = actor_values
+        )))
+        response$write(result)
+        return(response$finish())
     }
-    result = toString(jsonlite::toJSON(list(
-        date_data = date_frequencies,
-        country_data = country_frequencies,
-        action_data = action_frequencies,
-        actor_data = actor_values
-    )))
-    response$write(result)
-    return(response$finish())
+
+    if (dataset == 'icews') {
+        # Collect frequency data necessary for date plot
+        date_frequencies = RMongo::dbAggregate(connection, table, c(
+            paste('{$match: ', subsets, '}'),
+            '{"$project": {"Year":  {"$substr": ["$Event Date", 0, 4]},
+                           "Month": {"$substr": ["$Event Date", 5, 2]}}},',     # Construct year and month fields
+            '{$group: { _id: { year: "$Year", month: "$Month" }, total: {$sum: 1} }}'))  # Group by years and months
+
+        # Collect frequency data necessary for country plot
+        # NOTE: The data here is not formatted as country codes
+        country_frequencies = RMongo::dbAggregate(connection, table, c(
+        paste('{$match: ', subsets, '}'),                                   # First, match based on data subset
+        '{$project: {ccode: "$Country", _id: 0}}',                          # Cull to just Country field
+        '{$group: { _id: {Country: "$ccode"}, total: {$sum:1}}}'))          # Compute frequencies of each bin
+
+        # Collect frequency data necessary for action plot
+        event_frequencies = RMongo::dbAggregate(connection, table, c(
+            paste('{$match: ', subsets, '}'),                               # First, match based on data subset
+            '{$project: {etext: "$Event Text", _id: 0}}',                   # Cull to just RootCode field
+            '{$group: { _id: {Event: "$etext"}, total: {$sum:1}}}'))        # Compute frequencies of each bin
+
+        # Collect unique values for sources page
+        actor_source = sort(RMongo::dbGetDistinct(connection, table, 'Source Name', subsets))
+        actor_source_sectors = sort(RMongo::dbGetDistinct(connection, table, 'Source Sectors', subsets))
+        actor_source_countries = sort(RMongo::dbGetDistinct(connection, table, 'Source Country', subsets))
+
+        actor_source_values = list(
+            full = actor_source,
+            entities = actor_source_sectors,
+            roles = actor_source_countries
+        )
+
+        actor_target = sort(RMongo::dbGetDistinct(connection, table, 'Target Name', subsets))
+        actor_target_sectors = sort(RMongo::dbGetDistinct(connection, table, 'Target Sectors', subsets))
+        actor_target_countries = sort(RMongo::dbGetDistinct(connection, table, 'Target Countries', subsets))
+
+        actor_target_values = list(
+            full = actor_target,
+            entities = actor_target_sectors,
+            roles = actor_target_countries,
+        )
+
+        # Package actor data
+        actor_values = list(
+            source = actor_source_values,
+            target = actor_target_values
+        )
+
+
+        if (production) {
+            sink()
+        }
+
+        result = toString(jsonlite::toJSON(list(
+            date_data = date_frequencies,
+            country_data = country_frequencies,
+            event_data = event_frequencies,
+            actor_data = actor_values
+        )))
+        response$write(result)
+        return(response$finish())
+    }
 }

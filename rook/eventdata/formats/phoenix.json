@@ -95,7 +95,7 @@
     "name": "URL",
     "format": ".*"
   },
-  "<sourcetxt>": {
+  "<publisher>": {
     "name": "sourcetxt",
     "format": ".*"
   }
