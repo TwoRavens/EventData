@@ -1,0 +1,5 @@
+[submodule "spec-event-data-server"]
+	path = spec-event-data-server
+	url = https://github.com/Sayeedsalam/spec-event-data-server.git
+	branch = master
+	ignore = dirty

@@ -7,12 +7,16 @@ if (!production) {
 } else {
     rappURL = "https://beta.dataverse.org/custom/"; //this will change when/if the production host changes
 }
-// Set to 'eventdatasubsetlocalapp' to load from local mongo server
-// Set to 'eventdatasubsetapp' to load from API
-let appname = 'eventdatasubsetlocalapp';
-let dataset = 'icews';
-// document.getElementById("header").innerHTML = dataset;
 
+let appname = 'eventdatasubsetapp';
+
+// Options: "phoenix" or "icews"
+let dataset = 'icews';
+
+// Options: "api" or "local"
+let datasource = 'local';
+
+// document.getElementById("header").innerHTML = dataset;
 let subsetKeys = [];
 let subsetKeySelected = "";
 
@@ -20,7 +24,7 @@ if (dataset === "phoenix") {
     subsetKeys = ["Actor", "Date", "Action", "Location", "Coordinates", "Custom"]; // Used to label buttons in the left panel
     subsetKeySelected = "Actor";
 }
-else {
+if (dataset === "icews") {
     subsetKeys = ["Date", "Location", "Coordinates", "Custom"]; // Used to label buttons in the left panel
     subsetKeySelected = 'Date';
 }
@@ -35,12 +39,11 @@ let variablesSelected = new Set();
 let varColor = 'rgba(240,248,255, 1.0)';   //d3.rgb("aliceblue");
 let selVarColor = 'rgba(250,128,114, 0.5)';    //d3.rgb("salmon");
 
+// Stores the live data returned from the server
 let dateData = [];
 let countryData = [];
 let actorData = {};
 let actionData = [];
-
-let eventData = {};
 
 // This is set once data is loaded and the graphs can be drawn. Subset menus will not be shown until this is set
 let initialLoad = false;
@@ -55,13 +58,19 @@ if (localStorage.getItem("subsetData") !== null) {
     subsetData = JSON.parse(localStorage.getItem('subsetData'));
 }
 
+// Construct queries for current subset tree
 let variableQuery = buildVariables();
 let subsetQuery = buildSubset(subsetData);
 
 console.log("Query: " + JSON.stringify(subsetQuery));
-let query = {'subsets': JSON.stringify(subsetQuery), 'variables': JSON.stringify(variableQuery), 'dataset': dataset};
+let query = {
+    'subsets': JSON.stringify(subsetQuery),
+    'variables': JSON.stringify(variableQuery),
+    'dataset': dataset,
+    'datasource': datasource
+};
 
-// The editor for the custom subsets
+// The editor menu for the custom subsets
 var container = document.getElementById("subsetCustomEditor");
 var options = {
     mode: 'code',
@@ -214,6 +223,7 @@ function makeCorsRequest(url, post, callback) {
     xhr.send('solaJSON='+ JSON.stringify(post));
 }
 
+// TODO: Change to web link to file
 function download() {
 
     function save(data) {
@@ -232,7 +242,8 @@ function download() {
         'subsets': JSON.stringify(subsetQuery),
         'variables': JSON.stringify(variableQuery),
         'dataset': dataset,
-        'raw': true
+        'datasource': datasource,
+        'type': 'raw'
     };
 
     makeCorsRequest(subsetURL, query, save);
@@ -244,72 +255,40 @@ function download() {
 */
 
 function loadICEWS(jsondata) {
-    console.log(appname);
-    if (appname === "eventdatasubsetlocalapp") {
-        dateData.length = 0;
-        for (let idx in jsondata.date_data) {
-            dateData.push(JSON.parse(jsondata.date_data[idx]))
-        }
-
-        countryData = {};
-        console.log(map_fullname_lookup);
-        for (let idx in jsondata.country_data) {
-            let parsed = JSON.parse(jsondata.country_data[idx]);
-            countryData[parsed['_id']['Country']] = parsed['total']
-        }
-        // actorData = jsondata.actor_data;
+    dateData.length = 0;
+    for (let idx in jsondata.date_data) {
+        dateData.push(JSON.parse(jsondata.date_data[idx]))
     }
+
+    countryData = {};
+    console.log(map_fullname_lookup);
+    for (let idx in jsondata.country_data) {
+        let parsed = JSON.parse(jsondata.country_data[idx]);
+        countryData[parsed['_id']['Country']] = parsed['total']
+    }
+    // actorData = jsondata.actor_data;
 }
 
 function loadPhoenix(jsondata) {
-    if (appname === "eventdatasubsetlocalapp") {
-        dateData.length = 0;
-        for (let idx in jsondata.date_data) {
-            dateData.push(JSON.parse(jsondata.date_data[idx]))
-        }
 
-        countryData = {};
-        for (let idx in jsondata.country_data) {
-            let parsed = JSON.parse(jsondata.country_data[idx]);
-            // TODO: All data in the database should be in ISO ALPHA-3 spec. This should not be necessary. Data is discarded.
-            if (parsed['_id']['CountryCode'].length === 3) {
-                countryData[parsed['_id']['CountryCode']] = parsed['total']
-            }
-        }
-        console.log(countryData);
+    dateData = jsondata.date_data;
 
-        actionData = {};
-        for (let i = 0; i < 20; i++) {
-            actionData[i] = 0;
+    for (let idx in jsondata.country_data) {
+        // TODO: All data in the database should be in ISO ALPHA-3 spec. This should not be necessary. Data is discarded.
+        if (jsondata.country_data[idx]._id.country_code.length === 3) {
+            countryData[jsondata.country_data[idx]._id.country_code]= jsondata.country_data[idx].total
         }
-        for (let idx in jsondata.action_data) {
-            let parsed = JSON.parse(jsondata.action_data[idx]);
-            actionData[parsed['_id']['RootCode']] = parsed['total']
-        }
-
-        actorData = jsondata.actor_data;
-
-    } else {
-        dateData = jsondata.date_data;
-
-        for (let idx in jsondata.country_data) {
-            // TODO: All data in the database should be in ISO ALPHA-3 spec. This should not be necessary. Data is discarded.
-            if (jsondata.country_data[idx]._id.country_code.length === 3) {
-                countryData[jsondata.country_data[idx]._id.country_code]= jsondata.country_data[idx].total
-            }
-        }
-
-        actionData = {};
-        for (let i = 0; i < 20; i++) {
-            actionData[i] = 0;
-        }
-        for (let idx in jsondata.action_data) {
-            actionData[jsondata.action_data[idx]._id.root_code] = jsondata.action_data[idx].total
-        }
-
-        actorData = jsondata.actor_data;
     }
 
+    actionData = {};
+    for (let i = 0; i < 20; i++) {
+        actionData[i] = 0;
+    }
+    for (let idx in jsondata.action_data) {
+        actionData[jsondata.action_data[idx]._id.root_code] = jsondata.action_data[idx].total
+    }
+
+    actorData = jsondata.actor_data;
 }
 
 function pageSetup(jsondata) {
@@ -321,12 +300,8 @@ function pageSetup(jsondata) {
         return false;
     }
 
-    if (dataset === "icews") {
-        loadICEWS(jsondata);
-    }
-    if (dataset === "phoenix") {
-        loadPhoenix(jsondata);
-    }
+    if (dataset === "phoenix") loadPhoenix(jsondata);
+    if (dataset === "icews") loadICEWS(jsondata);
 
     d3date(true);
     d3loc();
@@ -541,7 +516,8 @@ function callbackDelete(id) {
             query = {
                 'subsets': JSON.stringify(subsetQuery),
                 'variables': JSON.stringify(variableQuery),
-                'dataset': dataset
+                'dataset': dataset,
+                'datasource': datasource
             };
             makeCorsRequest(subsetURL, query, pageSetup);
 
@@ -1063,7 +1039,8 @@ function reset() {
         query = {
             'subsets': JSON.stringify({}),
             'variables': JSON.stringify({}),
-            'dataset': dataset
+            'dataset': dataset,
+            'datasource': datasource
         };
         makeCorsRequest(subsetURL, query, pageSetup);
     }
@@ -1134,7 +1111,8 @@ function submitQuery() {
     query = {
         'subsets': JSON.stringify(subsetQuery),
         'variables': JSON.stringify(variableQuery),
-        'dataset': dataset
+        'dataset': dataset,
+        'datasource': datasource
     };
     makeCorsRequest(subsetURL, query, submitQueryCallback);
 }

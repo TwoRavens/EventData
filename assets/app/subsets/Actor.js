@@ -1309,6 +1309,7 @@ function actorSearch(actorName) {
     query = {
         'subsets': JSON.stringify(subsets),
         'dataset': dataset,
+        'datasource': datasource,
         'type': currentTab
     };
 

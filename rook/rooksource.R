@@ -20,7 +20,7 @@ if(production) {
 }
 
 if(!production){
-    packageList<-c("Rcpp","VGAM", "AER", "dplyr", "quantreg", "geepack", "maxLik", "Amelia", "Rook","jsonlite","rjson", "devtools", "DescTools", "nloptr","XML", "RMongo")
+    packageList<-c("Rcpp","VGAM", "AER", "dplyr", "quantreg", "geepack", "maxLik", "Amelia", "Rook","jsonlite","rjson", "devtools", "DescTools", "nloptr","XML")
 
     ## install missing packages, and update if newer version available
     for(i in 1:length(packageList)){
@@ -36,7 +36,6 @@ library(rjson)
 library(jsonlite)
 library(devtools)
 library(DescTools)
-library(RMongo)
 
 if (!production) {
     if(!("Zelig" %in% rownames(installed.packages()))) {
@@ -111,7 +110,6 @@ source("rookquery.R")
 source("build.R")
 source("rookagg.R")
 source("eventdata/rooksubset.R")
-source("eventdata/rooksubset_local.R")
 source("eventdata/rookformatter.R")
 
 if(addPrivacy){
@@ -132,7 +130,6 @@ if(!production){
     R.server$add(app = query.app, name="queryapp")
     R.server$add(app = build.app, name="buildapp")
     R.server$add(app = aggregate.app, name="aggregateapp")
-    R.server$add(app = eventdata_subset_local.app, name="eventdatasubsetlocalapp")
     R.server$add(app = eventdata_subset.app, name="eventdatasubsetapp")
 
     ## These add the .apps for the privacy budget allocator interface
