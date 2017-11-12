@@ -5,3 +5,5 @@ rook/.Rproj.user
 rook/.Rproj
 rook/.RData
 rook/.Rhistory
+node_modules/
+assets/build/
