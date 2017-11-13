@@ -255,16 +255,11 @@ function download() {
 */
 
 function loadICEWS(jsondata) {
-    dateData.length = 0;
-    for (let idx in jsondata.date_data) {
-        dateData.push(JSON.parse(jsondata.date_data[idx]))
-    }
+    dateData = jsondata.date_data;
 
     countryData = {};
-    console.log(map_fullname_lookup);
     for (let idx in jsondata.country_data) {
-        let parsed = JSON.parse(jsondata.country_data[idx]);
-        countryData[parsed['_id']['Country']] = parsed['total']
+        countryData[jsondata.country_data[idx]['_id']['Country']] = jsondata.country_data[idx]['total']
     }
     // actorData = jsondata.actor_data;
 }

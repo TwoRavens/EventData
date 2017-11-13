@@ -65,21 +65,25 @@ eventdata_subset.app <- function(env) {
         return(response$finish())
     }
 
-    if (!production && datasource == "local") {
-        server_address = local_server_address
-    }
-    eventdata_url = paste(server_address, api_key, sep="")
-
     if (!production && !is.null(everything$datasource)) {
         datasource = everything$datasource
     }
-    format = paste(dataset, '_', datasource, sep="")
 
+    print(datasource)
+    if (!production && datasource == "local") {
+        server_address = local_server_address
+    }
+
+    format = paste(dataset, '_', datasource, sep="")
+    eventdata_url = paste(server_address, api_key, "&dataset=", dataset, sep="")
 
     # ~~~~ Data Retrieval ~~~~
 
     getData = function(url) {
-        data = jsonlite::fromJSON(relabel(url, format))$data
+        print(gsub(' ', '%20', relabel(url, format), fixed=TRUE))
+
+        data = jsonlite::fromJSON(gsub(' ', '%20', relabel(url, format), fixed=TRUE))$data
+
         print(data)
         return(data)
     }
@@ -151,7 +155,7 @@ eventdata_subset.app <- function(env) {
         sink()
     }
 
-    if (dataset == "pheonix") {
+    if (dataset == "phoenix") {
 
         # This is a new query, so compute new metadata
         query_url = paste(eventdata_url, '&query=', subsets, sep="")
@@ -229,13 +233,13 @@ eventdata_subset.app <- function(env) {
         query_url = paste(eventdata_url, '&query=', subsets, sep="")
 
         print("Collecting date frequencies")
-        date_frequencies = getData(paste(eventdata_url, '&aggregate=', '[{$match:', subsets, '},',
+        date_frequencies = getData(paste(eventdata_url, '&aggregate=', '[{"$match":', subsets, '},',
             '{"$project": {"Year":  {"$substr": ["$<date>", 0, 4]},',
                           '"Month": {"$substr": ["$<date>", 5, 2]}}},',                           # Construct year and month fields
-            '{$group: { _id: { year: "$Year", month: "$Month" }, total: {$sum: 1} }}]', sep=""))  # Group by years and months
+            '{"$group": { "_id": { "year": "$Year", "month": "$Month" }, "total": {"$sum": 1} }}]', sep=""))  # Group by years and months
 
         print("Collecting country frequencies")
-        country_frequencies = getData(paste(query_url, 'group=<country>', sep=""))
+        country_frequencies = getData(paste(query_url, '&group=<country>', sep=""))
 
         print("Collecting cameo codes")
         action_frequencies = getData(paste(query_url, '&group=<cameo>', sep=""))
@@ -248,7 +252,7 @@ eventdata_subset.app <- function(env) {
         )
 
         print("Collecting actor target countries")
-        actor_target_countries = getData(paste(query_url, '&unique=<tgt_countries>', sep=""))
+        actor_target_countries = getData(paste(query_url, '&unique=<tgt_country>', sep=""))
 
         actor_target_values = list(
             countries = actor_target_countries

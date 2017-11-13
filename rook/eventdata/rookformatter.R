@@ -28,8 +28,6 @@ validate = function(jsonData, format) {
 relabel = function(queryString, format) {
 
     jsonFormat = jsonlite::fromJSON(readLines(paste("./eventdata/formats/", format, '.json', sep="")));
-
-    print(queryString)
     key = names(jsonFormat)
 
     for (i in 1:length(jsonFormat)) {
