@@ -1214,27 +1214,44 @@ function buildSubset(tree){
             let rule_query_inner = {};
             for (let child_id in rule.children) {
                 let child = rule.children[child_id];
+
+                let phoenixDate = function (date) {
+                    return date.getFullYear().toString() +
+                        pad(date.getMonth()) +
+                        pad(date.getDay());
+                };
+
+                let icewsDate = function (date) {
+                    return date.getFullYear().toString() + '-' +
+                        pad(date.getMonth()) + '-' +
+                        pad(date.getDay())
+                };
+
                 if ('fromDate' in child) {
 
                     // There is an implicit cast somewhere in the code, and I cannot find it.
                     child.fromDate = new Date(child.fromDate);
 
-                    let date = child.fromDate.getFullYear().toString() +
-                        pad(child.fromDate.getMonth()) +
-                        pad(child.fromDate.getDay());
-                    if (appname === 'eventdatasubsetlocalapp') rule_query_inner['$gte'] = parseInt(date);
-                    else rule_query_inner['$gte'] = date;
+                    if (dataset === "icews") {
+                        rule_query_inner['$gte'] = icewsDate(child.fromDate);
+                    }
+
+                    if (dataset === "phoenix") {
+                        rule_query_inner['$gte'] = phoenixDate(child.fromDate);
+                    }
                 }
                 if ('toDate' in child) {
 
                     // There is an implicit cast somewhere in the code, and I cannot find it.
                     child.toDate = new Date(child.toDate);
 
-                    let date = child.toDate.getFullYear().toString() +
-                        pad(child.toDate.getMonth()) +
-                        pad(child.toDate.getDay());
-                    if (appname === 'eventdatasubsetlocalapp') rule_query_inner['$lte'] = parseInt(date);
-                    else rule_query_inner['$lte'] = date;
+                    if (dataset === "icews") {
+                        rule_query_inner['$lte'] = icewsDate(child.toDate);
+                    }
+
+                    if (dataset === "phoenix") {
+                        rule_query_inner['$lte'] = phoenixDate(child.toDate);
+                    }
                 }
             }
             rule_query['<date>'] = rule_query_inner;
@@ -1250,7 +1267,13 @@ function buildSubset(tree){
             if ('negate' in rule && !rule.negate) {
                 rule_query_inner = {'$not': rule_query_inner};
             }
-            rule_query['<country_code>'] = rule_query_inner;
+
+            if (dataset === "icews") {
+                rule_query['<country>'] = rule_query_inner;
+            }
+            if (dataset === "phoenix") {
+                rule_query['<country_code>'] = rule_query_inner;
+            }
         }
 
         if (rule.name === 'Action Subset'){
