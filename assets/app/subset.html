@@ -23,8 +23,7 @@
     <script src="../../node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
 
     <!--Used for custom query editor-->
-    <link href="../../node_modules/jsoneditor/dist/jsoneditor.min.css" rel="stylesheet" type="text/css">
-    <script src="../../node_modules/jsoneditor/dist/jsoneditor.min.js"></script>
+    <script src="../../node_modules/ace-builds/src-min-noconflict/ace.js"></script>
 
     <!--Used for right panel query tree-->
     <script src="../../node_modules/jqtree/tree.jquery.js"></script>
@@ -411,11 +410,11 @@
 
     <div id="subsetCustom" style="display:none">
         <div class="panel-heading text-left" id="subsetCustomLabel" style="margin-top:10px;width:14em;float:left">
-            <h3 class="panel-title">Custom Query String</h3>
+            <h3 class="panel-title">View Query String</h3>
         </div>
-        <button id="subsetCustomValidate" onClick="validateCustom(editor.get(), true)"
-                class="btn btn-default" style="display:inline;margin-top:10px;">Validate</button>
-        <div id="subsetCustomEditor" style="resize:none;margin-left:10px;margin-top:5px;width:calc(100% - 45px); height:calc(100% - 59px);"></div>
+        <button id="subsetCustomShowAll" onClick="editor.setValue(JSON.stringify(buildSubset(subsetData), null, '\t'))"
+                class="btn btn-default" style="display:inline;margin-top:10px;">Show All</button>
+        <pre id="subsetCustomEditor" style="resize:none;margin-left:10px;margin-top:5px;width:calc(100% - 45px); height:calc(100% - 59px);"></pre>
     </div>
 </div>
 
@@ -483,7 +482,6 @@ function toggleRightPanel() {
 <script id="actionCodeJS" type="text/javascript" src="subsets/Action.js"></script>
 <script id="actorCodeJS" type="text/javascript" src="subsets/Actor.js"></script>
 <script id="coordinateCodeJS" type="text/javascript" src="subsets/Coordinates.js"></script>
-<script id="customCodeJS" type="text/javascript" src="subsets/Custom.js"></script>
 
 <script id="hopscotchTour" type="text/javascript" src="tour.js"></script>
 </body>

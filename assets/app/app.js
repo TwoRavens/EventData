@@ -71,15 +71,17 @@ let query = {
 };
 
 // The editor menu for the custom subsets
-var container = document.getElementById("subsetCustomEditor");
-var options = {
-    mode: 'code',
-    modes: ['code', 'form', 'text', 'tree', 'view'],
-    onError: function (err) {
-        alert(err.toString());
-    }
-};
-var editor = new JSONEditor(container, options);
+var editor = ace.edit("subsetCustomEditor");
+editor.$blockScrolling = Infinity;
+editor.session.setMode("ace/mode/json");
+
+editor.setOptions({
+    readOnly: true,
+    highlightActiveLine: false,
+    highlightGutterLine: false
+});
+editor.renderer.$cursorLayer.element.style.opacity=0;
+editor.textInput.getElement().disabled=true;
 
 
 reloadLeftpanelVariables();
@@ -158,6 +160,11 @@ function showSubset(subsetKey) {
             if (subsetKeySelected === "Action") {
                 drawGraphs();
                 updateData();
+            }
+            if (subsetKeySelected === "Custom") {
+                $("#stageButton").hide()
+            } else {
+                $("#stageButton").show()
             }
             rightpanelMargin();
         }
@@ -647,13 +654,14 @@ $('#subsetTree').on(
 );
 
 $('#subsetTree').bind(
-    'tree.contextmenu',
+    'tree.dblclick',
     function(event) {
         let tempQuery = buildSubset([event.node]);
         if ($.isEmptyObject(tempQuery)) {
             alert("\"" + event.node.name + "\" is too specific to parse into a query.");
         } else {
-            editor.set(tempQuery);
+            editor.setValue(JSON.stringify(tempQuery, null, '\t'));
+            editor.clearSelection();
             showSubset("Custom");
         }
     }
@@ -997,11 +1005,11 @@ function getSubsetPreferences() {
     }
 
     if (subsetKeySelected === 'Custom') {
-        if (validateCustom(editor.get())) {
+        if (validateCustom(editor.getValue())) {
             return {
                 id: String(nodeId++),
                 name: 'Custom Subset',
-                custom: JSON.stringify(editor.get())
+                custom: JSON.stringify(editor.getValue())
         }
         } else {
             return {}
