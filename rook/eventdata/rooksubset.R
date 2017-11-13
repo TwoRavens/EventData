@@ -2,8 +2,44 @@
 ##  rookeventdata.r
 ##
 
-# More general local setup instructions are available in the rooksubset_local file.
-
+## LOCAL SETUP STEPS:
+# 0. If on windows, use Ubuntu on a virtualbox to prevent this error:
+#       Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at http://localhost:8000/custom/eventdataapp. (Reason: CORS header ‘Access-Control-Allow-Origin’ missing).
+#
+# 1. Install mongodb
+#
+# 2. Start a mongo server. Server port is 27017 by default
+#      sudo service mongod start
+#
+# 3. Create a new database using the mongoimport utility in the mongo bin (via cmd from ~/TwoRavens/)
+#      mongoimport -d event_scrape -c phoenix_events --type csv --file ./data/samplePhox.csv --headerline
+#      mongoimport -d event_scrape -c icews_events --type tsv --columnsHaveTypes --fields "Event ID.string(),Event Date.string(),Source Name.string(),Source Sectors.string(),Source Country.string(),Event Text.string(),CAMEO Code.string(),Intensity.string(),Target Name.string(),Target Sectors.string(),Target Country.string(),Story ID.string(),Sentence Number.string(),Publisher.string(),City.string(),District.string(),Province.string(),Country.string(),Latitude.auto(),Longitude.auto()" --file ~/Downloads/events.2014.20160121105408.tab
+#
+#      3a. To check that the csv data is available, run in new CMD:
+#          (connects to mongo server on default port, opens mongo prompt)
+#            mongo
+#       b. Switch to event_scrape database
+#            use event_scrape
+#       c. Return all data from the phoenix_events table
+#            db.phoenix_events.find()
+#
+# 4. Start a local R server to make this file available here: (should prompt for solajson)
+#      http://localhost:8000/custom/eventdataapp
+#
+#      4a. Install/run R, to enter R prompt
+#       b. Run source('rooksource.R') to start R server
+#          Note: Rook, the R package that runs the R server, does not seem to recognize file updates,
+#                so the server must be restarted after each edit. There should be a better way.
+#
+# 5. Submit query from local python server via eventdata web gui. This script will return the subsetted data
+#
+# 6. Permit CORS on your browser. This doesn't seem to work on Windows
+#      6a. Google Chrome: start with terminal argument
+#             google-chrome --disable-web-security
+#       b. Mozilla Firefox: in about:config settings
+#             security.fileuri.strict_origin_policy - set to False
+# NOTE: Use quit() to close the R server. Otherwise the ports will not correctly be released.
+#       If you use Rstudio, modify the IDE config so that it won't share the same port as the R server
 eventdata_subset.app <- function(env) {
     production = FALSE     ## Toggle:  TRUE - Production, FALSE - Local Development
 
@@ -242,26 +278,28 @@ eventdata_subset.app <- function(env) {
         country_frequencies = getData(paste(query_url, '&group=<country>', sep=""))
 
         print("Collecting cameo codes")
-        action_frequencies = getData(paste(query_url, '&group=<cameo>', sep=""))
+        action_frequencies = getData(paste(eventdata_url, '&aggregate=', '[{"$match":', subsets, '},',
+            '{"$project": {"RootCode":  {"$substr": ["$<cameo>", 0, 2]}}},',                           # Construct RootCode field
+            '{"$group": { "_id": { "root_code": "$RootCode" }, "total": {"$sum": 1} }}]', sep=""))     # Group by RootCode
 
         print("Collecting actor source countries")
         actor_source_country = getData(paste(query_url, '&unique=<src_country>', sep=""))
 
         actor_source_values = list(
-            countries = actor_source_country
+            full = actor_source_country
         )
 
         print("Collecting actor target countries")
         actor_target_countries = getData(paste(query_url, '&unique=<tgt_country>', sep=""))
 
         actor_target_values = list(
-            countries = actor_target_countries
+            full = actor_target_countries
         )
 
         # Package actor data
         actor_values = list(
-        source = actor_source_values,
-        target = actor_target_values
+            source = actor_source_values,
+            target = actor_target_values
         )
 
         result = toString(jsonlite::toJSON(list(

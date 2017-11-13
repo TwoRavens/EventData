@@ -25,8 +25,8 @@ if (dataset === "phoenix") {
     subsetKeySelected = "Actor";
 }
 if (dataset === "icews") {
-    subsetKeys = ["Date", "Location", "Coordinates", "Custom"]; // Used to label buttons in the left panel
-    subsetKeySelected = 'Date';
+    subsetKeys = ["Actor", "Date", "Action", "Location", "Coordinates", "Custom"]; // Used to label buttons in the left panel
+    subsetKeySelected = 'Actor';
 }
 
 let subsetURL = rappURL + appname;
@@ -268,7 +268,21 @@ function loadICEWS(jsondata) {
     for (let idx in jsondata.country_data) {
         countryData[jsondata.country_data[idx]['_id']['Country']] = jsondata.country_data[idx]['total']
     }
-    // actorData = jsondata.actor_data;
+
+    actionData = {};
+    for (let i = 0; i < 20; i++) {
+        actionData[i] = 0;
+    }
+    for (let idx in jsondata.action_data) {
+        actionData[parseInt(jsondata.action_data[idx]._id.root_code)] = jsondata.action_data[idx].total
+    }
+
+    actorData = jsondata.actor_data;
+    actorDataLoad();
+
+    d3date(true);
+    d3loc();
+    resetActionCounts();
 }
 
 function loadPhoenix(jsondata) {
@@ -291,11 +305,17 @@ function loadPhoenix(jsondata) {
     }
 
     actorData = jsondata.actor_data;
+    actorDataLoad();
+
+
+    d3date(true);
+    d3loc();
+    resetActionCounts();
 }
 
 function pageSetup(jsondata) {
-    console.log("Server returned:");
-    console.log(jsondata);
+    // console.log("Server returned:");
+    // console.log(jsondata);
 
     if (jsondata.date_data.length === 0) {
         alert("No records match your subset. Plots will not be updated.");
@@ -304,11 +324,6 @@ function pageSetup(jsondata) {
 
     if (dataset === "phoenix") loadPhoenix(jsondata);
     if (dataset === "icews") loadICEWS(jsondata);
-
-    d3date(true);
-    d3loc();
-    resetActionCounts();
-    actorDataLoad();
 
     // If first load of data, user may have selected a subset and is waiting. Render page now that data is available
     if (!initialLoad) {
@@ -1210,15 +1225,6 @@ function buildSubset(tree){
 
         if (rule.name === 'Date Subset') {
 
-            function pad(number) {
-                if (number <= 9) {
-                    return ("0" + number.toString());
-                }
-                else {
-                    return number.toString()
-                }
-            }
-
             let rule_query_inner = {};
             for (let child_id in rule.children) {
                 let child = rule.children[child_id];
@@ -1286,15 +1292,32 @@ function buildSubset(tree){
 
         if (rule.name === 'Action Subset'){
             let rule_query_inner = [];
-            for (let child_id in rule.children) {
-                rule_query_inner.push(parseInt(rule.children[child_id].name));
+            if (dataset === "phoenix") {
+                for (let child_id in rule.children) {
+                    rule_query_inner.push(parseInt(rule.children[child_id].name));
+                }
+                rule_query_inner = {'$in': rule_query_inner};
+
+                if ('negate' in rule && !rule.negate) {
+                    rule_query_inner = {'$not': rule_query_inner};
+                }
+
+                rule_query['<root_code>'] = rule_query_inner;
             }
 
-            rule_query_inner = {'$in': rule_query_inner};
-            if ('negate' in rule && !rule.negate) {
-                rule_query_inner = {'$not': rule_query_inner};
+            if (dataset === "icews") {
+                let prefixes = [];
+                for (let child_id in rule.children) {
+                    prefixes.push(pad(parseInt(rule.children[child_id].name)));
+                }
+                rule_query_inner = {'$regex': '^(' + prefixes.join('|') + ')'}
+
+                if ('negate' in rule && !rule.negate) {
+                    rule_query_inner = {'$not': rule_query_inner};
+                }
+
+                rule_query['<cameo>'] = rule_query_inner;
             }
-            rule_query['<root_code>'] = rule_query_inner;
         }
 
         if (rule.name === 'Actor Subset'){
@@ -1366,5 +1389,14 @@ function buildSubset(tree){
         }
 
         return rule_query;
+    }
+
+    function pad(number) {
+        if (number <= 9) {
+            return ("0" + number.toString());
+        }
+        else {
+            return number.toString()
+        }
     }
 }

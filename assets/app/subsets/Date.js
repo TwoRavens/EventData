@@ -123,6 +123,10 @@ function d3date(init=false) {
 
     for (let idx in dateData) {
         let binLabel = dateData[idx]._id;
+
+        // Ensure data is valid
+        if (isNaN(parseInt(binLabel.year))) continue;
+
         let bin = {'Date': new Date(binLabel.year, binLabel.month - 1, 0), 'Freq': dateData[idx].total};
         data.push(bin);
     }
