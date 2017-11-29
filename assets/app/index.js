@@ -1,5 +1,5 @@
 console.log("TEST");
-import '../css/app.css';
+import '../css/main.css';
 import '../pkgs/jqtree/jqtree.style.css';
 
 import m from 'mithril';

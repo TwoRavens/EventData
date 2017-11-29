@@ -1305,13 +1305,13 @@ div.actorTab button.active {
 	display: none;
 }
 
-.sourceChk, .targetChk, .actorChk {
+.sourceChk, .targetChk, .actorChk, .aggChk {
 	display: inline-block;
 	vertical-align: text-bottom;
 	margin: 1px 5px 0px 5px !important;
 }
 
-.actorChkLbl {
+.actorChkLbl, .aggChkLbl {
 	display: inline-block;
 	margin-right: 10px;
 }
@@ -1514,4 +1514,10 @@ color: #333;
 
 .glyphicon {
     color: #818181
+}
+
+/* Begin aggregation styling */
+.aggregPentaSelect {
+    padding: 10px;
+    width: 300px;
 }
