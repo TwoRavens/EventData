@@ -176,10 +176,14 @@ table tr td{
 #leftpanel #leftContentArea div.active {display:block;}
 
 /* Elements to enable/disable on open/close left panel */
+/*
 #leftpanel.closepanel {width:1px;}
 #leftpanel.closepanel #leftpaneltitle,
 #leftpanel.closepanel #leftpanelButtons,
 #leftpanel.closepanel #leftpanelContent {display:none;}
+*/
+#leftpanel.closepanel {width:1px;}
+#leftpanel.closepanel #leftPanelAllContent {display:none;}
 
 #rightpanel {
     border:1px solid #ADADAD;
@@ -1221,18 +1225,28 @@ div.actorTab button.active {
 
 .actorFullList {
 	display: inline-block;
+/*
 	position: absolute;
+*/
 	width :180px;
+/*
 	height: calc(100% - 212px);
+*/
+	height: calc(100% - 60px);
 	overflow-x: auto;
 	overflow-y: scroll;
 	white-space: nowrap;
 }
 
 .actorFilterList {
+/*
 	position: absolute;
+*/
 	width: 164px;
+/*
 	height: calc(100% - 206px);
+*/
+	height: calc(100% - 54px);
     margin-top:3px;
 	overflow-x: auto;
 	overflow-y: scroll;
@@ -1280,12 +1294,29 @@ div.actorTab button.active {
 }
 
 .actorBottom {
+/*
 	margin: 5px;
     margin-top:-12px;
+*/
+/*
+	margin: 0px 0px !important;
+	padding: 0px !important;
+*/
+}
+
+.actorBottomTry {
+/*
+height: 40px;
+*/
+	border: 1px solid green;
+	margin-top: -12px;
 }
 
 .actorNewGroup {
+/*
 	float: right;
+*/
+margin-left: 60px;
 }
 
 .actorShowSelected {
@@ -1380,6 +1411,8 @@ div.actorTab button.active {
 	-o-user-select: none;
 	user-select: none;
 	height: calc(100% - 19px) !important;
+border: 1px solid green;
+display: block;
     width:100%;
 }
 

@@ -1,3 +1,5 @@
+let opMode = "subset";
+
 let production = false;
 
 let rappURL = '';
@@ -10,7 +12,8 @@ if (!production) {
 // Set to 'eventdatasubsetlocalapp' to load from local mongo server
 // Set to 'eventdatasubsetapp' to load from API
 let appname = 'eventdatasubsetlocalapp';
-let dataset = 'icews';
+//~ let dataset = 'icews';
+let dataset = "phoenix";
 // document.getElementById("header").innerHTML = dataset;
 
 let subsetKeys = [];
